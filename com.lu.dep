@@ -3,3 +3,45 @@
 #
 # Created by Bryan Roethel, Longwood University (roethelbc@longwood.edu)
 # Name: com.lu.dep
+#
+#
+# Process: Install DEPNotify.app and run @ enrollment. If machine exists in Jamf Pro it will automatically continue
+# and complete the step. If the machine does not exist in Jamf Pro or is a member of the group labled, 'facstaff' or
+# 'departmental' if will prompt the tech for to assign a fixed asset tag and cohort. All updates are installed.
+#
+#
+#########################################################################################
+# Get information from the Jamf Pro server. Checks if the device already exists and pulls
+# down all the EAs for the device.
+#########################################################################################
+if [ -e "/Library/Preferences/com.jamfsoftware.jamf.plist" ]; then
+    jamfpro=$(defaults read /Library/Preferences/com.jamfsoftware/jamf.plist jss_url)
+else
+    echo "Jamf Pro server not set. Exiting..."
+    exit 1
+fi
+
+#########################################################################################
+# Use API to retrieve device EAs. Username and password will be hashed out.
+#########################################################################################
+apiuser="api_user"
+apipass="api_pass"
+
+#########################################################################################
+# Pull device info.
+#########################################################################################
+jamfbinary=/usr/local/bin/jamf
+macosver=$(sw_vers -productVersion)
+serial=$(ioreg -rd1 -c IOPlatformExpertDevice | awk -F'"' '/IOPlatformSerialNumber/{print $4}')
+
+#########################################################################################
+# Curl API information for later.
+#########################################################################################
+eaxml=$(curl "$jamfpro"JSSResource/computers/serialnumber/"$serial"/subset/extension_attributes -u "$apiuser":"$apipass" -H "Accept: text/xml")
+assignedname=$(echo "$eaxml" | xpath '//extension_attribute[name="Assigned Computer Name"' | awk -F'<value>|</value>' '{print $2}')
+assignedcohort=$(echo "$eaxml" | xpath '//extension_attribute[name="Cohort"' | awk -F'<value>|</value>' '{print $2}')
+
+#########################################################################################
+# Last needed information
+#########################################################################################
+
