@@ -8,6 +8,26 @@
 #########################################################################################
 
 #########################################################################################
+# Global Variables
+#########################################################################################
+	if [ -e "/Library/Preferences/com.jamfsoftware.jamf.plist" ]; then
+			jamfpro=$(defaults read /Library/Preferences/com.jamfsoftware/jamf.plist jss_url)
+	else
+			echo "Jamf Pro server not set. Exiting..."
+			exit 1
+	fi
+
+#########################################################################################
+# Retrieve API information for later.
+#########################################################################################
+	# Pull Asset Tag
+		tagxml=$(curl "$jamfpro"JSSResource/computers/serialnumber/"$serial"/subset/general -u "$apiuser":"$apipass" -H "Accept: text/xml")
+		assigned_tag=$(echo "$tagxml" | xpath '//general[name="asset_tag"' | awk -F'<value>|</value>' '{print $2}')
+	#	Pull Cohort "Device Role"
+		eaxml=$(curl "$jamfpro"JSSResource/computers/serialnumber/"$serial"/subset/extension_attributes -u "$apiuser":"$apipass" -H "Accept: text/xml")
+		assigned_cohort=$(echo "$eaxml" | xpath '//extension_attribute[name="Cohort"' | awk -F'<value>|</value>' '{print $2}')
+
+#########################################################################################
 # General Appearance
 #########################################################################################
 # Set Fullscreen
@@ -43,6 +63,8 @@
   registration_status="Waiting for device to finish registration"
   registration_button="Register"
   registration_picture="/Applications/Utilities/DEPNotify.app/Contents/Resources/registration_logo.png"
+	registration_begin_word="Setting"
+	registration_middle_word="to"
 
 # Text Field Input, here we will set the asset tag information that will be used later for naming the device. This info will
 # be submitted to Jamf Pro under the "Asset Tag" field. 
@@ -52,6 +74,13 @@
   reg_text_label_1_help_text="Enter the five digit asset tag that has been assigned to this computer. It is either a blue or read sticker with a barcode \n
   on the back of the device if it is an iMac or the bottom of the device if it is a MacBook. Do not enter in the assumed computer name in this field. \n
   The device will be named in accordence with ITS device naming policy using the asset tag information provided here."
+	
+	# Text field logic that will be used later on
+		reg_text_lable_1_logic (){
+			reg_text_lable_1_value=$(defaults read "$dep_notify_user_input_plist" "$reg_text_label_1")
+			echo "Status: $registration_begin_word $reg_text_label_1 $registration_middle_word $reg_text_lable_1_value" >> "$dep_notify_log"
+				# Submit logic to Jamf Pro
+					"$jamf_binary" recon -assetTag "$reg_text_lable_1_value"
 
 # Popup Menu Input
   reg_popup_label_1="Device Configuration"
@@ -100,7 +129,7 @@
 # Determine if device is known or unknown or if it can autostart configuration. This info was pulled earlier from Jamf Pro.
 	if [[ "$assignedname" == "" ]] || [[ "$assignedcohort" == "" ]] || [[ "$assignedcohort" == "Departmental" ]] || [[ "$assignedcohort" == "Facstaff" ]]; then
 		
-		# Input Driven Device Provisioning Start...
+		# Device is unknown to Jamf Pro or needs to be reprovisioned...
 		
 		# Setting custom image if specified
  			if [ "$banner_image_path" != "" ]; then  echo "Command: Image: $banner_image_path" >> "$dep_notify_log"; fi
@@ -141,5 +170,13 @@
 			for reg_popup_label_1_options in "${reg_popup_label_1_options[@]}"; do
       	defaults write "$dep_notify_config_plist" popupButton1Content -array-add "$reg_popup_label_1_options"
       done
+		
+		else
+		
+			# Device is known to Jamf Pro and does not need to be reprovisioned, ie. classroom or loaner device.
+			
+			# Variables from Jamf Pro EAs lookup
+			set_computer_name=$assignedname
+			cohort=$assignedcohort
 
 
