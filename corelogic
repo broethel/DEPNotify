@@ -11,7 +11,7 @@
 # Global Variables
 #########################################################################################
 
-# Jamf Pro Info 
+# Jamf Pro Server Info 
   if [ -e "/Library/Preferences/com.jamfsoftware.jamf.plist" ]; then
     jamfpro=$(defaults read /Library/Preferences/com.jamfsoftware/jamf.plist jss_url)
   else
@@ -19,22 +19,36 @@
   exit 1
   fi
   
-  jamf_binary="/usr/local/bin/jamf"
-
-# Device Information
+# API Account Info
+  apiuser=$4
+  apipass=$5
+    
+# Serial Number
   serial=$(ioreg -rd1 -c IOPlatformExpertDevice | awk -F'"' '/IOPlatformSerialNumber/{print $4}')
+
+# API Asset Tag
+  tagxml=$(curl "$jamfpro"JSSResource/computers/serialnumber/"$serial"/subset/general -u "$apiuser":"$apipass" -H "Accept: text/xml")
+  assigned_tag=$(echo "$tagxml" | xpath '//general[name="asset_tag"' | awk -F'<value>|</value>' '{print $2}')
+  
+#	API Cohort "Device Role"
+  eaxml=$(curl "$jamfpro"JSSResource/computers/serialnumber/"$serial"/subset/extension_attributes -u "$apiuser":"$apipass" -H "Accept: text/xml")
+  assigned_cohort=$(echo "$eaxml" | xpath '//extension_attribute[name="Cohort"' | awk -F'<value>|</value>' '{print $2}')
+  
+  jamf_binary="/usr/local/bin/jamf"
+ 
+# Hardware Type
   model=$(ioreg -rd1 -c IOPlatformExpertDevice | awk -F'"' '/model/{print $4}')
+  
+# Naming Prefix
   if [[ "$model" =~ "Book" ]]; then 
     prefix=LUM
   else
     prefix=LU
   fi
+  
+# Naming Suffix
   suffix=APPLE
   
-# API Account Info, set in script
-  apiuser=$4
-  apipass=$5
-
 # Caffeinate / No Sleep Configuration
   no_sleep=true
 
@@ -54,12 +68,7 @@
 #########################################################################################
 # Retrieve API information for later.
 #########################################################################################
-  # Pull Asset Tag
-    tagxml=$(curl "$jamfpro"JSSResource/computers/serialnumber/"$serial"/subset/general -u "$apiuser":"$apipass" -H "Accept: text/xml")
-    assigned_tag=$(echo "$tagxml" | xpath '//general[name="asset_tag"' | awk -F'<value>|</value>' '{print $2}')
-  #	Pull Cohort "Device Role"
-    eaxml=$(curl "$jamfpro"JSSResource/computers/serialnumber/"$serial"/subset/extension_attributes -u "$apiuser":"$apipass" -H "Accept: text/xml")
-    assigned_cohort=$(echo "$eaxml" | xpath '//extension_attribute[name="Cohort"' | awk -F'<value>|</value>' '{print $2}')
+
 
 #########################################################################################
 # Global Appearance & Plist Settings
@@ -113,6 +122,8 @@
       echo "Status: $registration_begin_word $reg_text_label_1 $registration_middle_word $reg_text_lable_1_value" >> "$dep_notify_log"
         # Submit logic to Jamf Pro
           "$jamf_binary" recon -assetTag "$reg_text_lable_1_value"
+          
+    }
 
 # Popup Menu Input
   reg_popup_label_1="Device Configuration"
