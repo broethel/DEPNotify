@@ -7,382 +7,98 @@
 #########################################################################################
 #########################################################################################
 
-# Variables for File Paths
-  JAMF_BINARY="/usr/local/bin/jamf"
-  FDE_SETUP_BINARY="/usr/bin/fdesetup"
-  DEP_NOTIFY_APP="/Applications/Utilities/DEPNotify.app"
-  DEP_NOTIFY_LOG="/var/tmp/depnotify.log"
-  DEP_NOTIFY_DEBUG="/var/tmp/depnotifyDebug.log"
-  DEP_NOTIFY_DONE="/var/tmp/com.depnotify.provisioning.done"
+#########################################################################################
+# General Appearance
+#########################################################################################
+# Set Fullscreen
+  fullscreen=true
 
-# Pulling from Policy parameters to allow true/false flags to be set. More info
-# can be found on https://www.jamf.com/jamf-nation/articles/146/script-parameters
-# These will override what is specified in the script above.
-  # Testing Mode
-    if [ "$4" != "" ]; then TESTING_MODE="$4"; fi
-  # Fullscreen Mode
-    if [ "$5" != "" ]; then FULLSCREEN="$5"; fi
-  # No Sleep / Caffeinate Mode
-    if [ "$6" != "" ]; then NO_SLEEP="$6"; fi
-  # Self Service Custom Branding
-    if [ "$7" != "" ]; then SELF_SERVICE_CUSTOM_BRANDING="$7"; fi
-  # Complete method dropdown or main screen
-    if [ "$8" != "" ]; then COMPLETE_METHOD_DROPDOWN_ALERT="$8"; fi
-  # EULA Mode
-    if [ "$9" != "" ]; then EULA_ENABLED="$9"; fi
-  # Registration Mode
-    if [ "${10}" != "" ]; then REGISTRATION_ENABLED="${10}"; fi
+# Banner logo image path
+  banner_image_path="/Applications/Utilities/DEPNotify.app/Contents/Resources/longwood_logo.png"
 
-# Standard Testing Mode Enhancements
-  if [ "$TESTING_MODE" = true ]; then
-    # Removing old config file if present (Testing Mode Only)
-      if [ -f "$DEP_NOTIFY_LOG" ]; then rm "$DEP_NOTIFY_LOG"; fi
-      if [ -f "$DEP_NOTIFY_DONE" ]; then rm "$DEP_NOTIFY_DONE"; fi
-      if [ -f "$DEP_NOTIFY_DEBUG" ]; then rm "$DEP_NOTIFY_DEBUG"; fi
-    # Setting Quit Key set to command + control + x (Testing Mode Only)
-      echo "Command: QuitKey: x" >> "$DEP_NOTIFY_LOG"
-  fi
+# Banner Main Title
+  banner_title="macOS Device Provisioning"
 
-# Validating true/false flags
-  if [ "$TESTING_MODE" != true ] && [ "$TESTING_MODE" != false ]; then
-    echo "$(date "+%a %h %d %H:%M:%S"): Testing configuration not set properly. Currently set to $TESTING_MODE. Please update to true or false." >> "$DEP_NOTIFY_DEBUG"
-    exit 1
-  fi
-  if [ "$FULLSCREEN" != true ] && [ "$FULLSCREEN" != false ]; then
-    echo "$(date "+%a %h %d %H:%M:%S"): Fullscreen configuration not set properly. Currently set to $FULLSCREEN. Please update to true or false." >> "$DEP_NOTIFY_DEBUG"
-    exit 1
-  fi
-  if [ "$NO_SLEEP" != true ] && [ "$NO_SLEEP" != false ]; then
-    echo "$(date "+%a %h %d %H:%M:%S"): Sleep configuration not set properly. Currently set to $NO_SLEEP. Please update to true or false." >> "$DEP_NOTIFY_DEBUG"
-    exit 1
-  fi
-  if [ "$SELF_SERVICE_CUSTOM_BRANDING" != true ] && [ "$SELF_SERVICE_CUSTOM_BRANDING" != false ]; then
-    echo "$(date "+%a %h %d %H:%M:%S"): Self Service Custom Branding configuration not set properly. Currently set to $SELF_SERVICE_CUSTOM_BRANDING. Please update to true or false." >> "$DEP_NOTIFY_DEBUG"
-    exit 1
-  fi
-  if [ "$COMPLETE_METHOD_DROPDOWN_ALERT" != true ] && [ "$COMPLETE_METHOD_DROPDOWN_ALERT" != false ]; then
-    echo "$(date "+%a %h %d %H:%M:%S"): Completion alert method not set properly. Currently set to $COMPLETE_METHOD_DROPDOWN_ALERT. Please update to true or false." >> "$DEP_NOTIFY_DEBUG"
-    exit 1
-  fi
-  if [ "$EULA_ENABLED" != true ] && [ "$EULA_ENABLED" != false ]; then
-    echo "$(date "+%a %h %d %H:%M:%S"): EULA configuration not set properly. Currently set to $EULA_ENABLED. Please update to true or false." >> "$DEP_NOTIFY_DEBUG"
-    exit 1
-  fi
-  if [ "$REGISTRATION_ENABLED" != true ] && [ "$REGISTRATION_ENABLED" != false ]; then
-    echo "$(date "+%a %h %d %H:%M:%S"): Registration configuration not set properly. Currently set to $REGISTRATION_ENABLED. Please update to true or false." >> "$DEP_NOTIFY_DEBUG"
-    exit 1
-  fi
+# Text that will display under the banner. User \n for new line.
+  main_text='Thank you for selecting Mac at Longwood University! This device is currently being setup to univeristy standards and will \n
+  need to complete before you can get started. This process can take a while so please just sit back and enjoy the show! \n
+  This device will reboot and return to the login screen when all installs are completed.'
+  
+# Continue button text for 
+  
+#########################################################################################
+# Plist Configuration
+#########################################################################################
+# Plist location
+  info_plist_wrapper (){
+    dep_notify_user_input_plist="/Users/$CURRENT_USER/Library/Preferences/menu.nomad.DEPNotifyUserInput.plist"
+  }
 
-# Run DEP Notify will run after Apple Setup Assistant
-  SETUP_ASSISTANT_PROCESS=$(pgrep -l "Setup Assistant")
-  until [ "$SETUP_ASSISTANT_PROCESS" = "" ]; do
-    echo "$(date "+%a %h %d %H:%M:%S"): Setup Assistant Still Running. PID $SETUP_ASSISTANT_PROCESS." >> "$DEP_NOTIFY_DEBUG"
+# Status Text Alignment
+  status_text_align="center"
+
+#########################################################################################
+# Registration Window Configuration
+#########################################################################################
+# General Settings
+  registration_title="New Device or Reprovisioning Device"
+  registration_status="Waiting for device to finish registration"
+  registration_button="Register"
+  registration_picture="/Applications/Utilities/DEPNotify.app/Contents/Resources/registration_logo.png"
+
+# Text Field Input, here we will set the asset tag information that will be used later for naming the device. This info will
+# be submitted to Jamf Pro under the "Asset Tag" field. 
+  reg_text_label_1="Asset Tag"
+  reg_text_label_1_placeholder="01234"
+  reg_text_label_1_help_title="Device Fixed Asset Tag"
+  reg_text_label_1_help_text="Enter the five digit asset tag that has been assigned to this computer. It is either a blue or read sticker with a barcode \n
+  on the back of the device if it is an iMac or the bottom of the device if it is a MacBook. Do not enter in the assumed computer name in this field. \n
+  The device will be named in accordence with ITS device naming policy using the asset tag information provided here."
+
+# Popup Menu Input
+  reg_popup_label_1="Device Configuration"
+  reg_popup_label_1_options=(
+    "Facstaff"
+    "Departmental"
+  )
+  reg_popup_label_1_help_title="Device Configuration"
+  reg_popup_label_1_help_text="Select how this device is intended to be configured. Facstaff configurations will be joined to \n
+  active directory and recieve additional software. Departmental configurations will not have access to domain resources, will \n
+  have a local administrator account created."
+
+#########################################################################################
+# Variables for file paths
+#########################################################################################
+  jamf_binary="/usr/local/bin/jamf"
+  dep_notify_app="/Applications/Utilities/DEPNotify.app"
+  dep_notify_log="/var/tmp/depnotify.log"
+  dep_notify_debug="/var/tmp/depnotifydebug.log"
+  dep_notify_done="/var/tmp/com.depnotify.provisioning.done"
+  dep_notify_restart="/var/tmp/com.depnotify.provisioning.restart"
+  
+#########################################################################################
+# Let the fun begin! Main logic of the script
+#########################################################################################
+# Run DEPNotify after the Apple Setup Assistant
+  setup_assistant_process=$(pgrep -l "Setup Assistant")
+  until [ "$setup_assistant_process" = "" ]; do
+    echo "$(date "+%a %h %d %H:%M:%S"): Setup Assistant Still Running. PID $setup_assistant_processS." >> "$dep_notify_debug"
     sleep 1
-    SETUP_ASSISTANT_PROCESS=$(pgrep -l "Setup Assistant")
+    setup_assistant_process=$(pgrep -l "Setup Assistant")
   done
 
-# Checking to see if the Finder is running now before continuing. This can help
-# in scenarios where an end user is not configuring the device.
-  FINDER_PROCESS=$(pgrep -l "Finder")
-  until [ "$FINDER_PROCESS" != "" ]; do
-    echo "$(date "+%a %h %d %H:%M:%S"): Finder process not found. Assuming device is at login screen." >> "$DEP_NOTIFY_DEBUG"
+# Checking to see if Finder is running befor continuing. DEPNotify must be run in a user session
+  finder_process=$(pgrep -l "Finder")
+  until [ "$finder_process" != "" ]; do
+    echo "$(date "+%a %h %d %H:%M:%S"): Finder process not found. Assuming device is at login screen." >> "$dep_notify_debug"
     sleep 1
-    FINDER_PROCESS=$(pgrep -l "Finder")
+    finder_process=$(pgrep -l "Finder")
   done
 
-# After the Apple Setup completed. Now safe to grab the current user.
-  CURRENT_USER=$(/usr/bin/python -c 'from SystemConfiguration import SCDynamicStoreCopyConsoleUser; import sys; username = (SCDynamicStoreCopyConsoleUser(None, None, None) or [None])[0]; username = [username,""][username in [u"loginwindow", None, u""]]; sys.stdout.write(username + "\n");')
-  echo "$(date "+%a %h %d %H:%M:%S"): Current user set to $CURRENT_USER." >> "$DEP_NOTIFY_DEBUG"
+# After Apple Setup is completed. Safe to grab the current user
+  current_user=$(/usr/bin/python -c 'from SystemConfiguration import SCDynamicStoreCopyConsoleUser; import sys; username = (SCDynamicStoreCopyConsoleUser(None, None, None) or [None])[0]; username = [username,""][username in [u"loginwindow", None, u""]]; sys.stdout.write(username + "\n");')
+  echo "$(date "+%a %h %d %H:%M:%S"): Current user set to $current_user." >> "$dep_notify_debug"
 
-# Adding Check and Warning if Testing Mode is off and BOM files exist
-  if [[ ( -f "$DEP_NOTIFY_LOG" || -f "$DEP_NOTIFY_DONE" ) && "$TESTING_MODE" = false ]]; then
-    echo "$(date "+%a %h %d %H:%M:%S"): TESTING_MODE set to false but config files were found in /var/tmp. Letting user know and exiting." >> "$DEP_NOTIFY_DEBUG"
-    mv "$DEP_NOTIFY_LOG" "/var/tmp/depnotify_old.log"
-    echo "Command: MainTitle: $ERROR_BANNER_TITLE" >> "$DEP_NOTIFY_LOG"
-    echo "Command: MainText: $ERROR_MAIN_TEXT" >> "$DEP_NOTIFY_LOG"
-    echo "Status: $ERROR_STATUS" >> "$DEP_NOTIFY_LOG"
-    sudo -u "$CURRENT_USER" open -a "$DEP_NOTIFY_APP" --args -path "$DEP_NOTIFY_LOG"
-    sleep 5
-    exit 1
-  fi
+# Determine if device is known or unknown or if it can autostart configuration
+	if [[ "$jssMacName" == "" ]] || [[ "$jssCohort" == "" ]] || [[ "$jssCohort" == "OFFICE" ]] || [[ "$jssCohort" == "FACSTAFF" ]]; then
 
-# If SELF_SERVICE_CUSTOM_BRANDING is set to true. Loading the updated icon
-  if [ "$SELF_SERVICE_CUSTOM_BRANDING" = true ]; then
-    open -a "/Applications/$SELF_SERVICE_APP_NAME" --hide
-
-  # Loop waiting on the branding image to properly show in the users library
-  CUSTOM_BRANDING_PNG="/Users/$CURRENT_USER/Library/Application Support/com.jamfsoftware.selfservice.mac/Documents/Images/brandingimage.png"
-    until [ -f "$CUSTOM_BRANDING_PNG" ]; do
-      echo "$(date "+%a %h %d %H:%M:%S"): Waiting for branding image from Jamf Pro." >> "$DEP_NOTIFY_DEBUG"
-       sleep 1
-    done
-
-  # Setting Banner Image for DEP Notify to Self Service Custom Branding
-    BANNER_IMAGE_PATH="$CUSTOM_BRANDING_PNG"
-
-  # Closing Self Service
-    SELF_SERVICE_PID=$(pgrep -l "$(echo "$SELF_SERVICE_APP_NAME" | cut -d "." -f1)" | cut -d " " -f1)
-    echo "$(date "+%a %h %d %H:%M:%S"): Self Service custom branding icon has been loaded. Killing Self Service PID $SELF_SERVICE_PID." >> "$DEP_NOTIFY_DEBUG"
-    kill "$SELF_SERVICE_PID"
-  fi
-
-# Setting custom image if specified
-  if [ "$BANNER_IMAGE_PATH" != "" ]; then  echo "Command: Image: $BANNER_IMAGE_PATH" >> "$DEP_NOTIFY_LOG"; fi
-
-# Setting custom title if specified
-  if [ "$BANNER_TITLE" != "" ]; then echo "Command: MainTitle: $BANNER_TITLE" >> "$DEP_NOTIFY_LOG"; fi
-
-# Setting custom main text if specified
-  if [ "$MAIN_TEXT" != "" ]; then echo "Command: MainText: $MAIN_TEXT" >> "$DEP_NOTIFY_LOG"; fi
-
-# General Plist Configuration
-  # Calling function to set the INFO_PLIST_PATH
-    INFO_PLIST_WRAPPER
-
-  # The plist information below
-    DEP_NOTIFY_CONFIG_PLIST="/Users/$CURRENT_USER/Library/Preferences/menu.nomad.DEPNotify.plist"
-
-  # If testing mode is on, this will remove some old configuration files
-    if [ "$TESTING_MODE" = true ] && [ -f "$DEP_NOTIFY_CONFIG_PLIST" ]; then rm "$DEP_NOTIFY_CONFIG_PLIST"; fi
-    if [ "$TESTING_MODE" = true ] && [ -f "$DEP_NOTIFY_USER_INPUT_PLIST" ]; then rm "$DEP_NOTIFY_USER_INPUT_PLIST"; fi
-
-  # Setting default path to the plist which stores all the user completed info
-    defaults write "$DEP_NOTIFY_CONFIG_PLIST" pathToPlistFile "$DEP_NOTIFY_USER_INPUT_PLIST"
-
-  # Setting status text alignment
-    defaults write "$DEP_NOTIFY_CONFIG_PLIST" statusTextAlignment "$STATUS_TEXT_ALIGN"
-
-  # Setting help button
-    if [ "$HELP_BUBBLE_TITLE" != "" ]; then
-      defaults write "$DEP_NOTIFY_CONFIG_PLIST" helpBubble -array-add "$HELP_BUBBLE_TITLE"
-      defaults write "$DEP_NOTIFY_CONFIG_PLIST" helpBubble -array-add "$HELP_BUBBLE_BODY"
-    fi
-
-# EULA Configuration
-  if [ "$EULA_ENABLED" =  true ]; then
-    DEP_NOTIFY_EULA_DONE="/var/tmp/com.depnotify.agreement.done"
-
-    # If testing mode is on, this will remove EULA specific configuration files
-      if [ "$TESTING_MODE" = true ] && [ -f "$DEP_NOTIFY_EULA_DONE" ]; then rm "$DEP_NOTIFY_EULA_DONE"; fi
-
-    # Writing title, subtitle, and EULA txt location to plist
-      defaults write "$DEP_NOTIFY_CONFIG_PLIST" EULAMainTitle "$EULA_MAIN_TITLE"
-      defaults write "$DEP_NOTIFY_CONFIG_PLIST" EULASubTitle "$EULA_SUBTITLE"
-      defaults write "$DEP_NOTIFY_CONFIG_PLIST" pathToEULA "$EULA_FILE_PATH"
-
-    # Setting ownership of EULA file
-      chown "$CURRENT_USER:staff" "$EULA_FILE_PATH"
-      chmod 444 "$EULA_FILE_PATH"
-  fi
-
-# Registration Plist Configuration
-  if [ "$REGISTRATION_ENABLED" = true ]; then
-    DEP_NOTIFY_REGISTER_DONE="/var/tmp/com.depnotify.registration.done"
-
-    # If testing mode is on, this will remove registration specific configuration files
-      if [ "$TESTING_MODE" = true ] && [ -f "$DEP_NOTIFY_REGISTER_DONE" ]; then rm "$DEP_NOTIFY_REGISTER_DONE"; fi
-
-    # Main Window Text Configuration
-      defaults write "$DEP_NOTIFY_CONFIG_PLIST" registrationMainTitle "$REGISTRATION_TITLE"
-      defaults write "$DEP_NOTIFY_CONFIG_PLIST" registrationButtonLabel "$REGISTRATION_BUTTON"
-      defaults write "$DEP_NOTIFY_CONFIG_PLIST" registrationPicturePath "$BANNER_IMAGE_PATH"
-
-    # First Text Box Configuration
-      if [ "$REG_TEXT_LABEL_1" != "" ]; then
-        defaults write "$DEP_NOTIFY_CONFIG_PLIST" textField1Label "$REG_TEXT_LABEL_1"
-        defaults write "$DEP_NOTIFY_CONFIG_PLIST" textField1Placeholder "$REG_TEXT_LABEL_1_PLACEHOLDER"
-        defaults write "$DEP_NOTIFY_CONFIG_PLIST" textField1IsOptional "$REG_TEXT_LABEL_1_OPTIONAL"
-        # Code for showing the help box if configured
-          if [ "$REG_TEXT_LABEL_1_HELP_TITLE" != "" ]; then
-              defaults write "$DEP_NOTIFY_CONFIG_PLIST" textField1Bubble -array-add "$REG_TEXT_LABEL_1_HELP_TITLE"
-              defaults write "$DEP_NOTIFY_CONFIG_PLIST" textField1Bubble -array-add "$REG_TEXT_LABEL_1_HELP_TEXT"
-          fi
-      fi
-
-    # Second Text Box Configuration
-      if [ "$REG_TEXT_LABEL_2" != "" ]; then
-        defaults write "$DEP_NOTIFY_CONFIG_PLIST" textField2Label "$REG_TEXT_LABEL_2"
-        defaults write "$DEP_NOTIFY_CONFIG_PLIST" textField2Placeholder "$REG_TEXT_LABEL_2_PLACEHOLDER"
-        defaults write "$DEP_NOTIFY_CONFIG_PLIST" textField2IsOptional "$REG_TEXT_LABEL_2_OPTIONAL"
-        # Code for showing the help box if configured
-          if [ "$REG_TEXT_LABEL_2_HELP_TITLE" != "" ]; then
-              defaults write "$DEP_NOTIFY_CONFIG_PLIST" textField2Bubble -array-add "$REG_TEXT_LABEL_2_HELP_TITLE"
-              defaults write "$DEP_NOTIFY_CONFIG_PLIST" textField2Bubble -array-add "$REG_TEXT_LABEL_2_HELP_TEXT"
-          fi
-      fi
-
-    # Popup 1
-      if [ "$REG_POPUP_LABEL_1" != "" ]; then
-        defaults write "$DEP_NOTIFY_CONFIG_PLIST" popupButton1Label "$REG_POPUP_LABEL_1"
-        # Code for showing the help box if configured
-          if [ "$REG_POPUP_LABEL_1_HELP_TITLE" != "" ]; then
-            defaults write "$DEP_NOTIFY_CONFIG_PLIST" popupMenu1Bubble -array-add "$REG_POPUP_LABEL_1_HELP_TITLE"
-            defaults write "$DEP_NOTIFY_CONFIG_PLIST" popupMenu1Bubble -array-add "$REG_POPUP_LABEL_1_HELP_TEXT"
-          fi
-        # Code for adding the items from the array above into the plist
-          for REG_POPUP_LABEL_1_OPTION in "${REG_POPUP_LABEL_1_OPTIONS[@]}"; do
-             defaults write "$DEP_NOTIFY_CONFIG_PLIST" popupButton1Content -array-add "$REG_POPUP_LABEL_1_OPTION"
-          done
-      fi
-
-    # Popup 2
-      if [ "$REG_POPUP_LABEL_2" != "" ]; then
-        defaults write "$DEP_NOTIFY_CONFIG_PLIST" popupButton2Label "$REG_POPUP_LABEL_2"
-        # Code for showing the help box if configured
-          if [ "$REG_POPUP_LABEL_2_HELP_TITLE" != "" ]; then
-            defaults write "$DEP_NOTIFY_CONFIG_PLIST" popupMenu2Bubble -array-add "$REG_POPUP_LABEL_2_HELP_TITLE"
-            defaults write "$DEP_NOTIFY_CONFIG_PLIST" popupMenu2Bubble -array-add "$REG_POPUP_LABEL_2_HELP_TEXT"
-          fi
-        # Code for adding the items from the array above into the plist
-          for REG_POPUP_LABEL_2_OPTION in "${REG_POPUP_LABEL_2_OPTIONS[@]}"; do
-             defaults write "$DEP_NOTIFY_CONFIG_PLIST" popupButton2Content -array-add "$REG_POPUP_LABEL_2_OPTION"
-          done
-      fi
-
-    # Popup 3
-      if [ "$REG_POPUP_LABEL_3" != "" ]; then
-        defaults write "$DEP_NOTIFY_CONFIG_PLIST" popupButton3Label "$REG_POPUP_LABEL_3"
-        # Code for showing the help box if configured
-          if [ "$REG_POPUP_LABEL_3_HELP_TITLE" != "" ]; then
-            defaults write "$DEP_NOTIFY_CONFIG_PLIST" popupMenu3Bubble -array-add "$REG_POPUP_LABEL_3_HELP_TITLE"
-            defaults write "$DEP_NOTIFY_CONFIG_PLIST" popupMenu3Bubble -array-add "$REG_POPUP_LABEL_3_HELP_TEXT"
-          fi
-        # Code for adding the items from the array above into the plist
-          for REG_POPUP_LABEL_3_OPTION in "${REG_POPUP_LABEL_3_OPTIONS[@]}"; do
-             defaults write "$DEP_NOTIFY_CONFIG_PLIST" popupButton3Content -array-add "$REG_POPUP_LABEL_3_OPTION"
-          done
-      fi
-
-    # Popup 4
-      if [ "$REG_POPUP_LABEL_4" != "" ]; then
-        defaults write "$DEP_NOTIFY_CONFIG_PLIST" popupButton4Label "$REG_POPUP_LABEL_4"
-        # Code for showing the help box if configured
-          if [ "$REG_POPUP_LABEL_4_HELP_TITLE" != "" ]; then
-            defaults write "$DEP_NOTIFY_CONFIG_PLIST" popupMenu4Bubble -array-add "$REG_POPUP_LABEL_4_HELP_TITLE"
-            defaults write "$DEP_NOTIFY_CONFIG_PLIST" popupMenu4Bubble -array-add "$REG_POPUP_LABEL_4_HELP_TEXT"
-          fi
-        # Code for adding the items from the array above into the plist
-          for REG_POPUP_LABEL_4_OPTION in "${REG_POPUP_LABEL_4_OPTIONS[@]}"; do
-             defaults write "$DEP_NOTIFY_CONFIG_PLIST" popupButton4Content -array-add "$REG_POPUP_LABEL_4_OPTION"
-          done
-      fi
-  fi
-
-# Changing Ownership of the plist file
-  chown "$CURRENT_USER":staff "$DEP_NOTIFY_CONFIG_PLIST"
-  chmod 600 "$DEP_NOTIFY_CONFIG_PLIST"
-
-# Opening the app after initial configuration
-  if [ "$FULLSCREEN" = true ]; then
-    sudo -u "$CURRENT_USER" open -a "$DEP_NOTIFY_APP" --args -path "$DEP_NOTIFY_LOG" -fullScreen
-  elif [ "$FULLSCREEN" = false ]; then
-    sudo -u "$CURRENT_USER" open -a "$DEP_NOTIFY_APP" --args -path "$DEP_NOTIFY_LOG"
-  fi
-
-# Grabbing the DEP Notify Process ID for use later
-  DEP_NOTIFY_PROCESS=$(pgrep -l "DEPNotify" | cut -d " " -f1)
-  until [ "$DEP_NOTIFY_PROCESS" != "" ]; do
-    echo "$(date "+%a %h %d %H:%M:%S"): Waiting for DEPNotify to start to gather the process ID." >> "$DEP_NOTIFY_DEBUG"
-    sleep 1
-    DEP_NOTIFY_PROCESS=$(pgrep -l "DEPNotify" | cut -d " " -f1)
-  done
-
-# Using Caffeinate binary to keep the computer awake if enabled
-  if [ "$NO_SLEEP" = true ]; then
-    echo "$(date "+%a %h %d %H:%M:%S"): Caffeinating DEP Notify process. Process ID: $DEP_NOTIFY_PROCESS" >> "$DEP_NOTIFY_DEBUG"
-    caffeinate -disu -w "$DEP_NOTIFY_PROCESS"&
-  fi
-
-# Adding an alert prompt to let admins know that the script is in testing mode
-  if [ "$TESTING_MODE" = true ]; then
-    echo "Command: Alert: DEP Notify is in TESTING_MODE. Script will not run Policies or other commands that make change to this computer."  >> "$DEP_NOTIFY_LOG"
-  fi
-
-# Adding nice text and a brief pause for prettiness
-  echo "Status: $INITAL_START_STATUS" >> "$DEP_NOTIFY_LOG"
-  sleep 5
-
-# Setting the status bar
-  # Counter is for making the determinate look nice. Starts at one and adds
-  # more based on EULA, register, or other options.
-    ADDITIONAL_OPTIONS_COUNTER=1
-    if [ "$EULA_ENABLED" = true ]; then ((ADDITIONAL_OPTIONS_COUNTER++)); fi
-    if [ "$REGISTRATION_ENABLED" = true ]; then ((ADDITIONAL_OPTIONS_COUNTER++))
-      if [ "$REG_TEXT_LABEL_1" != "" ]; then ((ADDITIONAL_OPTIONS_COUNTER++)); fi
-      if [ "$REG_TEXT_LABEL_2" != "" ]; then ((ADDITIONAL_OPTIONS_COUNTER++)); fi
-      if [ "$REG_POPUP_LABEL_1" != "" ]; then ((ADDITIONAL_OPTIONS_COUNTER++)); fi
-      if [ "$REG_POPUP_LABEL_2" != "" ]; then ((ADDITIONAL_OPTIONS_COUNTER++)); fi
-      if [ "$REG_POPUP_LABEL_3" != "" ]; then ((ADDITIONAL_OPTIONS_COUNTER++)); fi
-      if [ "$REG_POPUP_LABEL_4" != "" ]; then ((ADDITIONAL_OPTIONS_COUNTER++)); fi
-    fi
-
-  # Checking policy array and adding the count from the additional options above.
-    ARRAY_LENGTH="$((${#POLICY_ARRAY[@]}+ADDITIONAL_OPTIONS_COUNTER))"
-    echo "Command: Determinate: $ARRAY_LENGTH" >> "$DEP_NOTIFY_LOG"
-
-# EULA Window Display Logic
-  if [ "$EULA_ENABLED" = true ]; then
-    echo "Status: $EULA_STATUS" >> "$DEP_NOTIFY_LOG"
-    echo "Command: ContinueButtonEULA: $EULA_BUTTON" >> "$DEP_NOTIFY_LOG"
-    while [ ! -f "$DEP_NOTIFY_EULA_DONE" ]; do
-      echo "$(date "+%a %h %d %H:%M:%S"): Waiting for user to accept EULA." >> "$DEP_NOTIFY_DEBUG"
-      sleep 1
-    done
-  fi
-
-# Registration Window Display Logic
-  if [ "$REGISTRATION_ENABLED" = true ]; then
-    echo "Status: $REGISTRATION_STATUS" >> "$DEP_NOTIFY_LOG"
-    echo "Command: ContinueButtonRegister: $REGISTRATION_BUTTON" >> "$DEP_NOTIFY_LOG"
-    while [ ! -f "$DEP_NOTIFY_REGISTER_DONE" ]; do
-      echo "$(date "+%a %h %d %H:%M:%S"): Waiting for user to complete registration." >> "$DEP_NOTIFY_DEBUG"
-      sleep 1
-    done
-    # Running Logic For Each Registration Box
-      if [ "$REG_TEXT_LABEL_1" != "" ]; then REG_TEXT_LABEL_1_LOGIC; fi
-      if [ "$REG_TEXT_LABEL_2" != "" ]; then REG_TEXT_LABEL_2_LOGIC; fi
-      if [ "$REG_POPUP_LABEL_1" != "" ]; then REG_POPUP_LABEL_1_LOGIC; fi
-      if [ "$REG_POPUP_LABEL_2" != "" ]; then REG_POPUP_LABEL_2_LOGIC; fi
-      if [ "$REG_POPUP_LABEL_3" != "" ]; then REG_POPUP_LABEL_3_LOGIC; fi
-      if [ "$REG_POPUP_LABEL_4" != "" ]; then REG_POPUP_LABEL_4_LOGIC; fi
-  fi
-
-# Loop to run policies
-  for POLICY in "${POLICY_ARRAY[@]}"; do
-    echo "Status: $(echo "$POLICY" | cut -d ',' -f1)" >> "$DEP_NOTIFY_LOG"
-    if [ "$TESTING_MODE" = true ]; then
-      sleep 10
-    elif [ "$TESTING_MODE" = false ]; then
-      "$JAMF_BINARY" policy -event "$(echo "$POLICY" | cut -d ',' -f2)"
-    fi
-  done
-
-# Nice completion text
-  echo "Status: $INSTALL_COMPLETE_TEXT" >> "$DEP_NOTIFY_LOG"
-
-# Check to see if FileVault Deferred enablement is active
-  FV_DEFERRED_STATUS=$($FDE_SETUP_BINARY status | grep "Deferred" | cut -d ' ' -f6)
-
-  # Logic to log user out if FileVault is detected. Otherwise, app will close.
-    if [ "$FV_DEFERRED_STATUS" = "active" ] && [ "$TESTING_MODE" = true ]; then
-      if [ "$COMPLETE_METHOD_DROPDOWN_ALERT" = true ]; then
-        echo "Command: Quit: This is typically where your FV_LOGOUT_TEXT would be displayed. However, TESTING_MODE is set to true and FileVault deferred status is on." >> "$DEP_NOTIFY_LOG"
-      else
-        echo "Command: MainText: TESTING_MODE is set to true and FileVault deferred status is on. Button effect is quit instead of logout. \n \n $FV_COMPLETE_MAIN_TEXT" >> "$DEP_NOTIFY_LOG"
-        echo "Command: ContinueButton: Test $FV_COMPLETE_BUTTON_TEXT" >> "$DEP_NOTIFY_LOG"
-      fi
-    elif [ "$FV_DEFERRED_STATUS" = "active" ] && [ "$TESTING_MODE" = false ]; then
-      if [ "$COMPLETE_METHOD_DROPDOWN_ALERT" = true ]; then
-        echo "Command: Logout: $FV_ALERT_TEXT" >> "$DEP_NOTIFY_LOG"
-      else
-        echo "Command: MainText: $FV_COMPLETE_MAIN_TEXT" >> "$DEP_NOTIFY_LOG"
-        echo "Command: ContinueButtonLogout: $FV_COMPLETE_BUTTON_TEXT" >> "$DEP_NOTIFY_LOG"
-      fi
-    else
-      if [ "$COMPLETE_METHOD_DROPDOWN_ALERT" = true ]; then
-        echo "Command: Quit: $COMPLETE_ALERT_TEXT" >> "$DEP_NOTIFY_LOG"
-      else
-        echo "Command: MainText: $COMPLETE_MAIN_TEXT" >> "$DEP_NOTIFY_LOG"
-        echo "Command: ContinueButton: $COMPLETE_BUTTON_TEXT" >> "$DEP_NOTIFY_LOG"
-      fi
-    fi
