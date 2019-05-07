@@ -99,6 +99,14 @@
   current_user=$(/usr/bin/python -c 'from SystemConfiguration import SCDynamicStoreCopyConsoleUser; import sys; username = (SCDynamicStoreCopyConsoleUser(None, None, None) or [None])[0]; username = [username,""][username in [u"loginwindow", None, u""]]; sys.stdout.write(username + "\n");')
   echo "$(date "+%a %h %d %H:%M:%S"): Current user set to $current_user." >> "$dep_notify_debug"
 
-# Determine if device is known or unknown or if it can autostart configuration
-	if [[ "$jssMacName" == "" ]] || [[ "$jssCohort" == "" ]] || [[ "$jssCohort" == "OFFICE" ]] || [[ "$jssCohort" == "FACSTAFF" ]]; then
+# Determine if device is known or unknown or if it can autostart configuration. This info was pulled earlier from Jamf Pro.
+	if [[ "$assignedname" == "" ]] || [[ "$assignedcohort" == "" ]] || [[ "$assignedcohort" == "Departmental" ]] || [[ "$assignedcohort" == "Facstaff" ]]; then
+		# Setting custom image if specified
+ 			if [ "$banner_image_path" != "" ]; then  echo "Command: Image: $banner_image_path" >> "$dep_notify_log"; fi
+
+		# Setting custom title if specified
+  		if [ "$banner_title" != "" ]; then echo "Command: MainTitle: $banner_title" >> "$dep_notify_log"; fi
+
+		# Setting custom main text if specified
+  		if [ "$main_text" != "" ]; then echo "Command: MainText: $main_text" >> "$dep_notify_log"; fi
 
