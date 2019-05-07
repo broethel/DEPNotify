@@ -24,14 +24,12 @@
   need to complete before you can get started. This process can take a while so please just sit back and enjoy the show! \n
   This device will reboot and return to the login screen when all installs are completed.'
   
-# Continue button text for 
-  
 #########################################################################################
 # Plist Configuration
 #########################################################################################
 # Plist location
   info_plist_wrapper (){
-    dep_notify_user_input_plist="/Users/$CURRENT_USER/Library/Preferences/menu.nomad.DEPNotifyUserInput.plist"
+    dep_notify_user_input_plist="/Users/$current_user/Library/Preferences/menu.nomad.DEPNotifyUserInput.plist"
   }
 
 # Status Text Alignment
@@ -101,6 +99,9 @@
 
 # Determine if device is known or unknown or if it can autostart configuration. This info was pulled earlier from Jamf Pro.
 	if [[ "$assignedname" == "" ]] || [[ "$assignedcohort" == "" ]] || [[ "$assignedcohort" == "Departmental" ]] || [[ "$assignedcohort" == "Facstaff" ]]; then
+		
+		# Input Driven Device Provisioning Start...
+		
 		# Setting custom image if specified
  			if [ "$banner_image_path" != "" ]; then  echo "Command: Image: $banner_image_path" >> "$dep_notify_log"; fi
 
@@ -109,4 +110,36 @@
 
 		# Setting custom main text if specified
   		if [ "$main_text" != "" ]; then echo "Command: MainText: $main_text" >> "$dep_notify_log"; fi
+		
+		# Calling function to set the INFO_PLIST_PATH
+    	info_plist_wrapper
+
+ 		# The plist information below
+    	dep_notify_config_plist="/Users/$current_user/Library/Preferences/menu.nomad.DEPNotify.plist"
+
+  	# Setting default path to the plist which stores all the user completed info
+    	defaults write "$dep_notify_config_plist" pathToPlistFile "$dep_notify_user_input_plist"
+
+  	# Setting status text alignment
+    	defaults write "$dep_notify_config_plist" statusTextAlignment "$status_text_align"
+		
+		# Main Window Text Configuration
+			defaults write "$dep_notify_config_plist" registrationMainTitle "$registration_title"
+			defaults write "$dep_notify_config_plist" registrationButtonLabel "$registration_button"
+			defaults write "$dep_notify_config_plist" registrationPicturePath "banner_image_path"
+		
+		# First Text Box Configuration
+			defaults write "$dep_notify_config_plist" textField1Label "$reg_text_label_1"
+			defaults write "$dep_notify_config_plist" textField1Placeholder "$reg_text_label_1_placeholder"
+			defaults write "$dep_notify_config_plist" textField1Bubble -array-add "$reg_text_label_1_help_title"
+			defaults write "$dep_notify_config_plist" textField1Bubble -array-add "$reg_text_label_1_help_text"
+			
+		# Popup 1
+			defaults write "$dep_notify_config_plist" popupButton1Label "$reg_popup_label_1"
+			defaults write "$dep_notify_config_plist" popupMenu1Bubble -array-add "$reg_popup_label_1_help_title"
+      defaults write "$dep_notify_config_plist" popupMenu1Bubble -array-add "$reg_text_label_1_help_text"
+			for reg_popup_label_1_options in "${reg_popup_label_1_options[@]}"; do
+      	defaults write "$dep_notify_config_plist" popupButton1Content -array-add "$reg_popup_label_1_options"
+      done
+
 
