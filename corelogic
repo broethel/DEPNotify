@@ -11,18 +11,46 @@
 # Global Variables
 #########################################################################################
 
-# Pull Jamf Pro Info
+# Jamf Pro Info 
   if [ -e "/Library/Preferences/com.jamfsoftware.jamf.plist" ]; then
     jamfpro=$(defaults read /Library/Preferences/com.jamfsoftware/jamf.plist jss_url)
   else
     echo "Jamf Pro server not set. Exiting..."
   exit 1
   fi
+  
+  jamf_binary="/usr/local/bin/jamf"
 
+# Device Information
+  serial=$(ioreg -rd1 -c IOPlatformExpertDevice | awk -F'"' '/IOPlatformSerialNumber/{print $4}')
+  model=$(ioreg -rd1 -c IOPlatformExpertDevice | awk -F'"' '/model/{print $4}')
+  if [[ "$model" =~ "Book" ]]; then 
+    prefix=LUM
+  else
+    prefix=LU
+  fi
+  suffix=APPLE
+  
 # API Account Info, set in script
   apiuser=$4
   apipass=$5
 
+# Caffeinate / No Sleep Configuration
+  no_sleep=true
+
+# DEPNotify Variables
+  dep_notify_app="/Applications/Utilities/DEPNotify.app"
+  dep_notify_log="/var/tmp/depnotify.log"
+  dep_notify_debug="/var/tmp/depnotifydebug.log"
+  dep_notify_done="/var/tmp/com.depnotify.provisioning.done"
+  dep_notify_restart="/var/tmp/com.depnotify.provisioning.restart"
+
+# Testing Mode (true/false)
+  testing_mode=true
+
+# Registration Mode
+  if [[ "$assignedname" == "" ]] || [[ "$assignedcohort" == "" ]] || [[ "$assignedcohort" == "Departmental" ]] || [[ "$assignedcohort" == "Facstaff" ]]; then registration_enabled=true; fi
+  
 #########################################################################################
 # Retrieve API information for later.
 #########################################################################################
@@ -34,10 +62,22 @@
     assigned_cohort=$(echo "$eaxml" | xpath '//extension_attribute[name="Cohort"' | awk -F'<value>|</value>' '{print $2}')
 
 #########################################################################################
-# General Appearance
+# Global Appearance & Plist Settings
 #########################################################################################
 # Set Fullscreen
   fullscreen=true
+
+# Plist location
+  info_plist_wrapper (){
+    dep_notify_user_input_plist="/Users/$current_user/Library/Preferences/menu.nomad.DEPNotifyUserInput.plist"
+  }
+
+# Status Text Alignment
+  status_text_align="center"
+
+#########################################################################################
+# Registration Window Configuration & Appearence 
+#########################################################################################
 
 # Banner logo image path
   banner_image_path="/Applications/Utilities/DEPNotify.app/Contents/Resources/longwood_logo.png"
@@ -49,21 +89,7 @@
   main_text='Thank you for selecting Mac at Longwood University! This device is currently being setup to univeristy standards and will \n
   need to complete before you can get started. This process can take a while so please just sit back and enjoy the show! \n
   This device will reboot and return to the login screen when all installs are completed.'
-  
-#########################################################################################
-# Plist Configuration
-#########################################################################################
-# Plist location
-  info_plist_wrapper (){
-    dep_notify_user_input_plist="/Users/$current_user/Library/Preferences/menu.nomad.DEPNotifyUserInput.plist"
-  }
 
-# Status Text Alignment
-  status_text_align="center"
-
-#########################################################################################
-# Registration Window Configuration
-#########################################################################################
 # General Settings
   registration_title="New Device or Reprovisioning Device"
   registration_status="Waiting for device to finish registration"
@@ -100,18 +126,25 @@
   have a local administrator account created."
 
 #########################################################################################
-# Variables for file paths
+# Auto Image Window Configuration & Appearence 
 #########################################################################################
-  jamf_binary="/usr/local/bin/jamf"
-  dep_notify_app="/Applications/Utilities/DEPNotify.app"
-  dep_notify_log="/var/tmp/depnotify.log"
-  dep_notify_debug="/var/tmp/depnotifydebug.log"
-  dep_notify_done="/var/tmp/com.depnotify.provisioning.done"
-  dep_notify_restart="/var/tmp/com.depnotify.provisioning.restart"
-  
+
+# Banner logo image path
+  banner_image_path="/Applications/Utilities/DEPNotify.app/Contents/Resources/longwood_logo.png"
+
+# Auto Banner Main Title
+  auto_banner_title="$device_name"
+
+# Text that will display under the banner. User \n for new line.
+  main_text="This Mac is installing all necessary software and running some installation scripts.  \
+  Please do not interrupt this process. This may take a few hours to complete; the machine restart \
+  automatically when it's finished. \n \n Cohort: $cohort \n \n macOS Version: $OSVERSION"
+
+
 #########################################################################################
 # Let the fun begin! Main logic of the script
 #########################################################################################
+
 # Run DEPNotify after the Apple Setup Assistant
   setup_assistant_process=$(pgrep -l "Setup Assistant")
   until [ "$setup_assistant_process" = "" ]; do
@@ -133,7 +166,7 @@
   echo "$(date "+%a %h %d %H:%M:%S"): Current user set to $current_user." >> "$dep_notify_debug"
 
 # Determine if device is known or unknown or if it can autostart configuration. This info was pulled earlier from Jamf Pro.
-  if [[ "$assignedname" == "" ]] || [[ "$assignedcohort" == "" ]] || [[ "$assignedcohort" == "Departmental" ]] || [[ "$assignedcohort" == "Facstaff" ]]; then
+  if [ $registration_enabled= true ]; then
   
     # Device is unknown to Jamf Pro or needs to be reprovisioned...
 
@@ -158,10 +191,13 @@
     # Setting status text alignment
       defaults write "$dep_notify_config_plist" statusTextAlignment "$status_text_align"
     
+    # Registration Plist Configuration
+     dep_notify_register_done="/var/tmp/com.depnotify.registration.done"
+        
     # Main Window Text Configuration
       defaults write "$dep_notify_config_plist" registrationMainTitle "$registration_title"
       defaults write "$dep_notify_config_plist" registrationButtonLabel "$registration_button"
-      defaults write "$dep_notify_config_plist" registrationPicturePath "banner_image_path"
+      defaults write "$dep_notify_config_plist" registrationPicturePath "$banner_image_path"
     
     # First Text Box Configuration
       defaults write "$dep_notify_config_plist" textField1Label "$reg_text_label_1"
@@ -178,7 +214,7 @@
       done
 
   else
-  
+      
       # Device is known to Jamf Pro and does not need to be reprovisioned, ie. classroom or loaner device.
       
       # Variables from Jamf Pro EAs lookup
