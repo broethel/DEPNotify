@@ -177,6 +177,4 @@
 			
 			# Variables from Jamf Pro EAs lookup
 			set_computer_name=$assignedname
-			cohort=$assignedcohort
-
- 
+			cohort=$assignedcohort 
