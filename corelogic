@@ -10,25 +10,28 @@
 #########################################################################################
 # Global Variables
 #########################################################################################
-	if [ -e "/Library/Preferences/com.jamfsoftware.jamf.plist" ]; then
-			jamfpro=$(defaults read /Library/Preferences/com.jamfsoftware/jamf.plist jss_url)
-	else
-			echo "Jamf Pro server not set. Exiting..."
-			exit 1
-	fi
 
+# Pull Jamf Pro Info
+  if [ -e "/Library/Preferences/com.jamfsoftware.jamf.plist" ]; then
+    jamfpro=$(defaults read /Library/Preferences/com.jamfsoftware/jamf.plist jss_url)
+  else
+    echo "Jamf Pro server not set. Exiting..."
+  exit 1
+  fi
+
+# API Account Info, set in script
   apiuser=$4
   apipass=$5
 
 #########################################################################################
 # Retrieve API information for later.
 #########################################################################################
-	# Pull Asset Tag
-		tagxml=$(curl "$jamfpro"JSSResource/computers/serialnumber/"$serial"/subset/general -u "$apiuser":"$apipass" -H "Accept: text/xml")
-		assigned_tag=$(echo "$tagxml" | xpath '//general[name="asset_tag"' | awk -F'<value>|</value>' '{print $2}')
-	#	Pull Cohort "Device Role"
-		eaxml=$(curl "$jamfpro"JSSResource/computers/serialnumber/"$serial"/subset/extension_attributes -u "$apiuser":"$apipass" -H "Accept: text/xml")
-		assigned_cohort=$(echo "$eaxml" | xpath '//extension_attribute[name="Cohort"' | awk -F'<value>|</value>' '{print $2}')
+  # Pull Asset Tag
+    tagxml=$(curl "$jamfpro"JSSResource/computers/serialnumber/"$serial"/subset/general -u "$apiuser":"$apipass" -H "Accept: text/xml")
+    assigned_tag=$(echo "$tagxml" | xpath '//general[name="asset_tag"' | awk -F'<value>|</value>' '{print $2}')
+  #	Pull Cohort "Device Role"
+    eaxml=$(curl "$jamfpro"JSSResource/computers/serialnumber/"$serial"/subset/extension_attributes -u "$apiuser":"$apipass" -H "Accept: text/xml")
+    assigned_cohort=$(echo "$eaxml" | xpath '//extension_attribute[name="Cohort"' | awk -F'<value>|</value>' '{print $2}')
 
 #########################################################################################
 # General Appearance
@@ -66,8 +69,8 @@
   registration_status="Waiting for device to finish registration"
   registration_button="Register"
   registration_picture="/Applications/Utilities/DEPNotify.app/Contents/Resources/registration_logo.png"
-	registration_begin_word="Setting"
-	registration_middle_word="to"
+  registration_begin_word="Setting"
+  registration_middle_word="to"
 
 # Text Field Input, here we will set the asset tag information that will be used later for naming the device. This info will
 # be submitted to Jamf Pro under the "Asset Tag" field. 
@@ -77,13 +80,13 @@
   reg_text_label_1_help_text="Enter the five digit asset tag that has been assigned to this computer. It is either a blue or read sticker with a barcode \n
   on the back of the device if it is an iMac or the bottom of the device if it is a MacBook. Do not enter in the assumed computer name in this field. \n
   The device will be named in accordence with ITS device naming policy using the asset tag information provided here."
-	
-	# Text field logic that will be used later on
-		reg_text_lable_1_logic (){
-			reg_text_lable_1_value=$(defaults read "$dep_notify_user_input_plist" "$reg_text_label_1")
-			echo "Status: $registration_begin_word $reg_text_label_1 $registration_middle_word $reg_text_lable_1_value" >> "$dep_notify_log"
-				# Submit logic to Jamf Pro
-					"$jamf_binary" recon -assetTag "$reg_text_lable_1_value"
+
+  # Text field logic that will be used later on
+    reg_text_lable_1_logic (){
+      reg_text_lable_1_value=$(defaults read "$dep_notify_user_input_plist" "$reg_text_label_1")
+      echo "Status: $registration_begin_word $reg_text_label_1 $registration_middle_word $reg_text_lable_1_value" >> "$dep_notify_log"
+        # Submit logic to Jamf Pro
+          "$jamf_binary" recon -assetTag "$reg_text_lable_1_value"
 
 # Popup Menu Input
   reg_popup_label_1="Device Configuration"
@@ -130,54 +133,54 @@
   echo "$(date "+%a %h %d %H:%M:%S"): Current user set to $current_user." >> "$dep_notify_debug"
 
 # Determine if device is known or unknown or if it can autostart configuration. This info was pulled earlier from Jamf Pro.
-	if [[ "$assignedname" == "" ]] || [[ "$assignedcohort" == "" ]] || [[ "$assignedcohort" == "Departmental" ]] || [[ "$assignedcohort" == "Facstaff" ]]; then
-		
-		# Device is unknown to Jamf Pro or needs to be reprovisioned...
-		
-		# Setting custom image if specified
- 			if [ "$banner_image_path" != "" ]; then  echo "Command: Image: $banner_image_path" >> "$dep_notify_log"; fi
+  if [[ "$assignedname" == "" ]] || [[ "$assignedcohort" == "" ]] || [[ "$assignedcohort" == "Departmental" ]] || [[ "$assignedcohort" == "Facstaff" ]]; then
+  
+    # Device is unknown to Jamf Pro or needs to be reprovisioned...
 
-		# Setting custom title if specified
-  		if [ "$banner_title" != "" ]; then echo "Command: MainTitle: $banner_title" >> "$dep_notify_log"; fi
+    # Setting custom image if specified
+      if [ "$banner_image_path" != "" ]; then  echo "Command: Image: $banner_image_path" >> "$dep_notify_log"; fi
 
-		# Setting custom main text if specified
-  		if [ "$main_text" != "" ]; then echo "Command: MainText: $main_text" >> "$dep_notify_log"; fi
-		
-		# Calling function to set the INFO_PLIST_PATH
-    	info_plist_wrapper
+    # Setting custom title if specified
+      if [ "$banner_title" != "" ]; then echo "Command: MainTitle: $banner_title" >> "$dep_notify_log"; fi
 
- 		# The plist information below
-    	dep_notify_config_plist="/Users/$current_user/Library/Preferences/menu.nomad.DEPNotify.plist"
+    # Setting custom main text if specified
+      if [ "$main_text" != "" ]; then echo "Command: MainText: $main_text" >> "$dep_notify_log"; fi
 
-  	# Setting default path to the plist which stores all the user completed info
-    	defaults write "$dep_notify_config_plist" pathToPlistFile "$dep_notify_user_input_plist"
+    # Calling function to set the INFO_PLIST_PATH
+      info_plist_wrapper
 
-  	# Setting status text alignment
-    	defaults write "$dep_notify_config_plist" statusTextAlignment "$status_text_align"
-		
-		# Main Window Text Configuration
-			defaults write "$dep_notify_config_plist" registrationMainTitle "$registration_title"
-			defaults write "$dep_notify_config_plist" registrationButtonLabel "$registration_button"
-			defaults write "$dep_notify_config_plist" registrationPicturePath "banner_image_path"
-		
-		# First Text Box Configuration
-			defaults write "$dep_notify_config_plist" textField1Label "$reg_text_label_1"
-			defaults write "$dep_notify_config_plist" textField1Placeholder "$reg_text_label_1_placeholder"
-			defaults write "$dep_notify_config_plist" textField1Bubble -array-add "$reg_text_label_1_help_title"
-			defaults write "$dep_notify_config_plist" textField1Bubble -array-add "$reg_text_label_1_help_text"
-			
-		# Popup 1
-			defaults write "$dep_notify_config_plist" popupButton1Label "$reg_popup_label_1"
-			defaults write "$dep_notify_config_plist" popupMenu1Bubble -array-add "$reg_popup_label_1_help_title"
+    # The plist information below
+      dep_notify_config_plist="/Users/$current_user/Library/Preferences/menu.nomad.DEPNotify.plist"
+
+    # Setting default path to the plist which stores all the user completed info
+      defaults write "$dep_notify_config_plist" pathToPlistFile "$dep_notify_user_input_plist"
+
+    # Setting status text alignment
+      defaults write "$dep_notify_config_plist" statusTextAlignment "$status_text_align"
+    
+    # Main Window Text Configuration
+      defaults write "$dep_notify_config_plist" registrationMainTitle "$registration_title"
+      defaults write "$dep_notify_config_plist" registrationButtonLabel "$registration_button"
+      defaults write "$dep_notify_config_plist" registrationPicturePath "banner_image_path"
+    
+    # First Text Box Configuration
+      defaults write "$dep_notify_config_plist" textField1Label "$reg_text_label_1"
+      defaults write "$dep_notify_config_plist" textField1Placeholder "$reg_text_label_1_placeholder"
+      defaults write "$dep_notify_config_plist" textField1Bubble -array-add "$reg_text_label_1_help_title"
+      defaults write "$dep_notify_config_plist" textField1Bubble -array-add "$reg_text_label_1_help_text"
+      
+    # Popup 1
+      defaults write "$dep_notify_config_plist" popupButton1Label "$reg_popup_label_1"
+      defaults write "$dep_notify_config_plist" popupMenu1Bubble -array-add "$reg_popup_label_1_help_title"
       defaults write "$dep_notify_config_plist" popupMenu1Bubble -array-add "$reg_text_label_1_help_text"
-			for reg_popup_label_1_options in "${reg_popup_label_1_options[@]}"; do
-      	defaults write "$dep_notify_config_plist" popupButton1Content -array-add "$reg_popup_label_1_options"
+      for reg_popup_label_1_options in "${reg_popup_label_1_options[@]}"; do
+        defaults write "$dep_notify_config_plist" popupButton1Content -array-add "$reg_popup_label_1_options"
       done
-		
-		else
-		
-			# Device is known to Jamf Pro and does not need to be reprovisioned, ie. classroom or loaner device.
-			
-			# Variables from Jamf Pro EAs lookup
-			set_computer_name=$assignedname
-			cohort=$assignedcohort 
+
+  else
+  
+      # Device is known to Jamf Pro and does not need to be reprovisioned, ie. classroom or loaner device.
+      
+      # Variables from Jamf Pro EAs lookup
+      set_computer_name=$assignedname
+      cohort=$assignedcohort 
