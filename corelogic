@@ -18,20 +18,19 @@
     echo "Jamf Pro server not set. Exiting..."
   exit 1
   fi
+
+# Hashed API Info. Parameter 4
+  apiauth=$(openssl enc -base64 -d <<< "$6") 
   
-# API Account Info
-  apiuser=$4
-  apipass=$5
-    
 # Serial Number
   serial=$(ioreg -rd1 -c IOPlatformExpertDevice | awk -F'"' '/IOPlatformSerialNumber/{print $4}')
 
 # API Asset Tag
-  tagxml=$(curl "$jamfpro"JSSResource/computers/serialnumber/"$serial"/subset/general -u "$apiuser":"$apipass" -H "Accept: text/xml")
+  tagxml=$(curl "$jamfpro"JSSResource/computers/serialnumber/"$serial"/subset/general -u "$apiauth" -H "Accept: text/xml")
   assigned_tag=$(echo "$tagxml" | xpath '//general[name="asset_tag"' | awk -F'<value>|</value>' '{print $2}')
   
 #	API Cohort "Device Role"
-  eaxml=$(curl "$jamfpro"JSSResource/computers/serialnumber/"$serial"/subset/extension_attributes -u "$apiuser":"$apipass" -H "Accept: text/xml")
+  eaxml=$(curl "$jamfpro"JSSResource/computers/serialnumber/"$serial"/subset/extension_attributes -u "$apiauth" -H "Accept: text/xml")
   assigned_cohort=$(echo "$eaxml" | xpath '//extension_attribute[name="Cohort"' | awk -F'<value>|</value>' '{print $2}')
   
   jamf_binary="/usr/local/bin/jamf"
@@ -48,6 +47,15 @@
   
 # Naming Suffix
   suffix=APPLE
+
+# Extension Attribute submission 
+   extension_atribute_upload (){
+    curl -k -s -u "$apiauth" -X "PUT" "https://$jamfpro/JSSResource/computers/udid/$getudid/subset/extension_attributes" \
+      -H "Content-Type: application/xml" \
+      -H "Accept: application/xml" \
+      -d "<computer><extension_attributes><extension_attribute><id>$eaID</id><name>$eaName</name><type>String</type><value>$value</value></extension_attribute></extension_attributes></computer>"
+
+  }
   
 # Caffeinate / No Sleep Configuration
   no_sleep=true
@@ -65,11 +73,6 @@
 # Registration Mode
   if [[ "$assignedname" == "" ]] || [[ "$assignedcohort" == "" ]] || [[ "$assignedcohort" == "Departmental" ]] || [[ "$assignedcohort" == "Facstaff" ]]; then registration_enabled=true; fi
   
-#########################################################################################
-# Retrieve API information for later.
-#########################################################################################
-
-
 #########################################################################################
 # Global Appearance & Plist Settings
 #########################################################################################
@@ -116,14 +119,16 @@
   on the back of the device if it is an iMac or the bottom of the device if it is a MacBook. Do not enter in the assumed computer name in this field. \n
   The device will be named in accordence with ITS device naming policy using the asset tag information provided here."
 
-  # Text field logic that will be used later on
-    reg_text_lable_1_logic (){
-      reg_text_lable_1_value=$(defaults read "$dep_notify_user_input_plist" "$reg_text_label_1")
-      echo "Status: $registration_begin_word $reg_text_label_1 $registration_middle_word $reg_text_lable_1_value" >> "$dep_notify_log"
-        # Submit logic to Jamf Pro
-          "$jamf_binary" recon -assetTag "$reg_text_lable_1_value"
-          
-    }
+# Text field logic that will be used later on
+  reg_text_lable_1_logic (){
+    reg_text_lable_1_value=$(defaults read "$dep_notify_user_input_plist" "$reg_text_label_1")
+    echo "Status: $registration_begin_word $reg_text_label_1 $registration_middle_word $reg_text_lable_1_value" >> "$dep_notify_log"
+      # Submit logic to Jamf Pro
+        "$jamf_binary" recon -assetTag "$reg_text_lable_1_value"
+        sleep 5
+        "$jamf_binary" setComputerName -name "$prefix""$reg_text_lable_1_value""$suffix"
+        sleep 5
+  }
 
 # Popup Menu Input
   reg_popup_label_1="Device Configuration"
@@ -135,6 +140,14 @@
   reg_popup_label_1_help_text="Select how this device is intended to be configured. Facstaff configurations will be joined to \n
   active directory and recieve additional software. Departmental configurations will not have access to domain resources, will \n
   have a local administrator account created."
+  
+# Text field logic that will be used later on
+  reg_popup_lable_1_logic (){
+    reg_popup_lable_1_value=$(defaults read "$dep_notify_user_input_plist" "$reg_popup_label_1")
+    echo "Status: $registration_begin_word $reg_popup_label_1 $registration_middle_word $reg_popup_lable_1_value" >> "$dep_notify_log"
+      # Submit logic to Jamf Pro
+        
+  }
 
 #########################################################################################
 # Auto Image Window Configuration & Appearence 
